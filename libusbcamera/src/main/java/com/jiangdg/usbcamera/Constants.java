@@ -6,6 +6,6 @@ package com.jiangdg.usbcamera;
 
 public class Constants {
 
-    public static final int PREVIEWWIDTH=1920;
-    public static final int PREVIEWHEIGHT=1080;
+    public static final int PREVIEWWIDTH=640;
+    public static final int PREVIEWHEIGHT=360;
 }

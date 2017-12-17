@@ -106,6 +106,7 @@ public class UVCCameraTextureView extends AspectRatioTextureView    // API >= 14
 
 	@Override
 	public void onSurfaceTextureAvailable(final SurfaceTexture surface, final int width, final int height) {
+		Log.e("============*","===="+width+"==="+height);
 		if (DEBUG) Log.i(TAG, "onSurfaceTextureAvailable:" + surface);
 		if (mRenderHandler == null) {
 			mRenderHandler = RenderHandler.createHandler(mFpsCounter, surface, width, height);
@@ -457,7 +458,6 @@ public class UVCCameraTextureView extends AspectRatioTextureView    // API >= 14
 			 * draw a frame (and request to draw for video capturing if it is necessary)
 			 */
 			public final void onDrawFrame() {
-				long time1=System.currentTimeMillis();
 				mEglSurface.makeCurrent();
 				// update texture(came from camera)
 				mPreviewSurface.updateTexImage();
@@ -471,7 +471,6 @@ public class UVCCameraTextureView extends AspectRatioTextureView    // API >= 14
 //					else
 //						mEncoder.frameAvailableSoon();
 //				}
-//				Log.e("=========", Arrays.toString(mStMatrix));
 				// draw to preview screen
 				mDrawer.draw(mTexId, mStMatrix, 0);
 				mEglSurface.swap();
