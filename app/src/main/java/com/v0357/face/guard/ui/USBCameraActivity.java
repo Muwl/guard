@@ -183,7 +183,7 @@ public class USBCameraActivity extends AppCompatActivity implements CameraDialog
                     if (rect.bottom > previewHeight) {
                         rect.bottom = previewHeight;
                     }
-                    yuv.compressToJpeg(rect, 90, ops);
+                    yuv.compressToJpeg(rect, 100, ops);
                     saveBitmap(ops.getByteArray());
                     result.clear();
                     try {
