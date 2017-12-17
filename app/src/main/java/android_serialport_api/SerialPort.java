@@ -18,7 +18,7 @@ public class SerialPort {
     private FileOutputStream mFileOutputStream;
 
     public SerialPort(File device, int baudrate, int flags) throws SecurityException, IOException {
-
+        Log.e("***--","00000000000");
         //检查访问权限，如果没有读写权限，进行文件操作，修改文件访问权限
         if (!device.canRead() || !device.canWrite()) {
             try {
@@ -26,11 +26,13 @@ public class SerialPort {
                 Process su = Runtime.getRuntime().exec("/system/xbin/su");
                 String cmd = "chmod 777 " + device.getAbsolutePath() + "\n" + "exit\n";
                 su.getOutputStream().write(cmd.getBytes());
-
+                Log.e("***--","11111111");
                 if ((su.waitFor() != 0) || !device.canRead() || !device.canWrite()) {
+                    Log.e("***--","2222222222");
                     throw new SecurityException();
                 }
             } catch (Exception e) {
+                Log.e("***--","3333333333");
                 e.printStackTrace();
                 throw new SecurityException();
             }

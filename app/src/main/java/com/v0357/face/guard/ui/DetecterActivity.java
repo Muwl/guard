@@ -100,7 +100,7 @@ public class DetecterActivity extends Activity implements OnCameraListener, View
         mSurfaceView.setOnCameraListener(this);
         mSurfaceView.setupGLSurafceView(mGLSurfaceView, true, mCameraMirror, mCameraRotate);
         mSurfaceView.debug_print_fps(true, false);
-
+        openSerialPort();
         AFT_FSDKError err = engine.AFT_FSDK_InitialFaceEngine(FaceDB.appid, FaceDB.ft_key, AFT_FSDKEngine.AFT_OPF_0_HIGHER_EXT, 16, 5);
         Log.d(TAG, "AFT_FSDK_InitialFaceEngine =" + err.getCode());
         err = engine.AFT_FSDK_GetVersion(version);
