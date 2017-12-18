@@ -21,9 +21,6 @@
         android:hardwareAccelerated="true"
         android:supportsRtl="true"
         android:theme="@style/AppTheme">
-        <activity android:name=".ui.MainActivity">
-
-        </activity>
 
         <activity android:name=".ui.USBCameraActivity"
             android:screenOrientation="landscape">
