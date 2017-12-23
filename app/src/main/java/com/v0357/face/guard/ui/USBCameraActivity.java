@@ -85,7 +85,7 @@ public class USBCameraActivity extends AppCompatActivity implements CameraDialog
     AFT_FSDKFace mAFT_FSDKFace = null;
 
     private final Handler mHandler = new Handler();
-    private int pinPort = 0;
+    private int pinPort = 37;
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -196,7 +196,22 @@ public class USBCameraActivity extends AppCompatActivity implements CameraDialog
             }
         }
     }
+    private boolean flag=true;
 
+    @OnClick(R.id.onclik)
+    public void onClick(View view){
+        Log.e("=========","==aaa=========");
+        if (flag){
+            openDoor();
+            flag=false;
+        }else{
+            colseDoor();
+            flag=true;
+        }
+
+
+
+    }
     private void Mirror(byte[] src, int w, int h) { //src是原始yuv数组
         int i;
         int index;
@@ -313,8 +328,8 @@ public class USBCameraActivity extends AppCompatActivity implements CameraDialog
     /***************************************串口*****************************************/
     protected SerialPort mSerialPort;
     protected InputStream mInputStream;
-    private String prot = "ttySAC0";
-    private int baudrate = 115200;
+    private String prot = "ttySAC2";
+    private int baudrate = 19200;
     private Thread receiveThread;
 
     private void openSerialPort() {
@@ -339,23 +354,25 @@ public class USBCameraActivity extends AppCompatActivity implements CameraDialog
             @Override
             public void run() {
                 while (true) {
+                    Log.e("******************", "======");
                     int size;
                     try {
-                        if (working || mImageNV21 != null) {
-                            return;
+//                        if (working || mImageNV21 != null) {
+//                            return;
+//                        }
+                        Log.e("******************", "222222");
+                        byte[] buffer = new byte[2048];
+                        if (mInputStream != null){
+                            size = mInputStream.read(buffer);
+                            if (size > 0) {
+                                String recinfo = new String(buffer, 0,
+                                        size);
+                                working = true;
+                                getUserInfo(1, recinfo);
+                                Log.e("******************", "接收到串口信息:" + recinfo);
+                            }
                         }
-                        byte[] buffer = new byte[1024];
-                        if (mInputStream == null)
-                            return;
-                        size = mInputStream.read(buffer);
-                        if (size > 0) {
-                            String recinfo = new String(buffer, 0,
-                                    size);
-                            working = true;
-                            getUserInfo(1, recinfo);
-                            Log.e("******************", "接收到串口信息:" + recinfo);
-                        }
-                    } catch (IOException e) {
+                    } catch (Exception e) {
                         e.printStackTrace();
                     }
                 }
@@ -402,12 +419,12 @@ public class USBCameraActivity extends AppCompatActivity implements CameraDialog
      */
     private void openDoor() {
         setGPIOValue(GPIOEnum.LOW);
-        mHandler.postDelayed(new Runnable() {
-            @Override
-            public void run() {
-                colseDoor();
-            }
-        }, 3000);
+//        mHandler.postDelayed(new Runnable() {
+//            @Override
+//            public void run() {
+//                colseDoor();
+//            }
+//        }, 3000);
     }
 
     /**

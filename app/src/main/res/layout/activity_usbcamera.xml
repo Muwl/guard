@@ -13,4 +13,10 @@
         android:rotationY="180"
         android:layout_centerHorizontal="true"
         android:layout_centerVertical="true" />
+
+    <Button
+        android:id="@+id/onclik"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="点我"/>
 </RelativeLayout>
