@@ -85,7 +85,7 @@ public class USBCameraActivity extends AppCompatActivity implements CameraDialog
     AFT_FSDKFace mAFT_FSDKFace = null;
 
     private final Handler mHandler = new Handler();
-    private int pinPort = 37;
+    private int pinPort = 38;
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -361,7 +361,7 @@ public class USBCameraActivity extends AppCompatActivity implements CameraDialog
 //                            return;
 //                        }
                         Log.e("******************", "222222");
-                        byte[] buffer = new byte[2048];
+                        byte[] buffer = new byte[1024];
                         if (mInputStream != null){
                             size = mInputStream.read(buffer);
                             if (size > 0) {
