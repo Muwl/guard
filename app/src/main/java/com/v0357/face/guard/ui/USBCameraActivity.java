@@ -12,6 +12,7 @@ import android.support.annotation.Nullable;
 import android.support.v7.app.AppCompatActivity;
 import android.text.TextUtils;
 import android.util.Log;
+import android.view.Menu;
 import android.view.Surface;
 import android.view.View;
 import android.view.Window;
@@ -37,6 +38,7 @@ import com.serenegiant.usb.widget.CameraViewInterface;
 import com.serenegiant.usb.widget.UVCCameraTextureView;
 import com.v0357.face.guard.R;
 import com.v0357.face.guard.face.FaceDB;
+import com.v0357.face.guard.utils.ScriptUtils;
 import com.v0357.face.guard.view.ProgressDialog;
 
 
@@ -151,8 +153,6 @@ public class USBCameraActivity extends AppCompatActivity implements CameraDialog
                 }
             }
         });
-
-
     }
 
     @Override
@@ -613,6 +613,11 @@ public class USBCameraActivity extends AppCompatActivity implements CameraDialog
 
     public boolean isCameraOpened() {
         return mUSBManager.isCameraOpened();
+    }
+
+    public boolean onCreateOptionsMenu(Menu menu){
+        getMenuInflater().inflate(R.menu.main,menu);
+        return true;
     }
 
 
