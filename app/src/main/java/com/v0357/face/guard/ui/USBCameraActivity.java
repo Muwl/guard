@@ -1,13 +1,25 @@
 package com.v0357.face.guard.ui;
 
+import android.annotation.SuppressLint;
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
+import android.content.pm.ApplicationInfo;
+import android.content.pm.PackageManager;
 import android.graphics.ImageFormat;
 import android.graphics.Rect;
 import android.graphics.YuvImage;
+import android.hardware.usb.IUsbManager;
 import android.hardware.usb.UsbDevice;
+import android.hardware.usb.UsbManager;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
+import android.os.IBinder;
 import android.os.Message;
+import android.os.RemoteException;
+import android.os.ServiceManager;
 import android.support.annotation.Nullable;
 import android.support.v7.app.AppCompatActivity;
 import android.text.TextUtils;
@@ -89,6 +101,8 @@ public class USBCameraActivity extends AppCompatActivity implements CameraDialog
     private final Handler mHandler = new Handler();
     private int pinPort = 38;
 
+    private UsbManager localUsbManager;
+
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -98,6 +112,7 @@ public class USBCameraActivity extends AppCompatActivity implements CameraDialog
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         setContentView(R.layout.activity_usbcamera);
         ButterKnife.bind(this);
+        initUSBPre();
         initGPIO();
         openSerialPort();
         mUVCCameraView = (CameraViewInterface) mTextureView;
@@ -153,6 +168,47 @@ public class USBCameraActivity extends AppCompatActivity implements CameraDialog
                 }
             }
         });
+    }
+
+    private void initUSBPre() {
+        localUsbManager = (UsbManager)getSystemService("usb");
+        initUsb();
+    }
+    @SuppressLint("NewApi")
+    private void initUsb(){
+//		PendingIntent mPermissionIntent = PendingIntent.getBroadcast(this, 0, new Intent("com.empia.USB_PERMISSION"), 0);
+        Intent intent = new Intent();
+        intent.setAction("com.empia.USB_PERMISSION");
+        IntentFilter filter = new IntentFilter();
+        filter.addAction("com.empia.USB_PERMISSION");
+        filter.addAction(UsbManager.ACTION_USB_DEVICE_DETACHED);
+        registerReceiver(mReceiver, filter);
+        // Request permission
+        for (UsbDevice device : localUsbManager.getDeviceList().values()) {
+            intent.putExtra(UsbManager.EXTRA_DEVICE, device);
+            intent.putExtra(UsbManager.EXTRA_PERMISSION_GRANTED, true);
+
+            final PackageManager pm = getPackageManager();
+            try {
+                ApplicationInfo aInfo = pm.getApplicationInfo(getPackageName(),
+                        0);
+                try {
+                    IBinder b = ServiceManager.getService(USB_SERVICE);
+                    IUsbManager service = IUsbManager.Stub.asInterface(b);
+                    service.grantDevicePermission(device, aInfo.uid);
+                } catch (RemoteException e) {
+                    // TODO Auto-generated catch block
+                    e.printStackTrace();
+                }
+            } catch (PackageManager.NameNotFoundException e) {
+                // TODO Auto-generated catch block
+                e.printStackTrace();
+            }
+            getApplicationContext().sendBroadcast(intent);
+//          mManager.requestPermission(device, mPermissionIntent);
+            Log.i("bofan","UsbManager.EXTRA_DEVICE =="  + localUsbManager.openDevice(device));
+        }
+
     }
 
     @Override
@@ -619,6 +675,40 @@ public class USBCameraActivity extends AppCompatActivity implements CameraDialog
         getMenuInflater().inflate(R.menu.main,menu);
         return true;
     }
+
+    private final BroadcastReceiver mReceiver = new BroadcastReceiver() {
+        public void onReceive(Context context, Intent intent) {
+            String action = intent.getAction();
+            if ("com.empia.USB_PERMISSION".equals(action)) {
+                synchronized (this) {
+                    UsbDevice device = (UsbDevice) intent
+                            .getParcelableExtra(UsbManager.EXTRA_DEVICE);
+                    Log.e("=====","UsbManager.EXTRA_DEVICE 22222222222222222 ========"
+                            + intent.getParcelableExtra(UsbManager.EXTRA_DEVICE));
+                    Log.e("=====","是否有权限了？？？？？？   " + localUsbManager.hasPermission(device));
+                    if (intent.getBooleanExtra(
+                            UsbManager.EXTRA_PERMISSION_GRANTED, false)) {
+                        if (device != null) {
+                            // Open reader
+                            Log.e("=====","Opening reader: " + device.getDeviceName()
+                                    + "...");
+                        }
+                    } else {
+                        if (device != null) {
+                            Log.e("=====","Permission no EXTRA_PERMISSION_GRANTED for device "
+                                    + device.getDeviceName());
+                        }
+
+                    }
+                }
+            } else if (UsbManager.ACTION_USB_DEVICE_DETACHED.equals(action)) {
+                synchronized (this) {
+                    // Close reader
+                    /* logMsg("Closing reader..."); */
+                }
+            }
+        }
+    };
 
 
 }
