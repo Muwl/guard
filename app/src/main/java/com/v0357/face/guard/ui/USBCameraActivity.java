@@ -206,7 +206,10 @@ public class USBCameraActivity extends AppCompatActivity implements CameraDialog
                     working = true;
                     byte[] data = mImageNV21;
                     try {
-                        iconImgDeal(data);
+                        File file=iconImgDeal(data);
+                        if (file!=null){
+                            verifyFace(file);
+                        }
                     } catch (Exception e) {
                         e.printStackTrace();
                         working = false;
@@ -218,7 +221,7 @@ public class USBCameraActivity extends AppCompatActivity implements CameraDialog
         }
     }
 
-    private void iconImgDeal(byte[] data) throws Exception {
+    private File iconImgDeal(byte[] data) throws Exception {
         mAFT_FSDKFace = result.get(0).clone();
         CameraDataUtils.Mirror(data,previewWidth,previewHeight);
         YuvImage yuv = new YuvImage(data, ImageFormat.NV21, previewWidth, previewHeight, null);
@@ -238,13 +241,14 @@ public class USBCameraActivity extends AppCompatActivity implements CameraDialog
             rect.bottom = previewHeight;
         }
         yuv.compressToJpeg(rect, 100, ops);
-        FileUtils.saveBitmap(ops.getByteArray());
+        File file=FileUtils.saveBitmap(ops.getByteArray());
         result.clear();
         try {
             ops.close();
         } catch (IOException e) {
             e.printStackTrace();
         }
+        return file;
     }
 
     /**

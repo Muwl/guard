@@ -13,7 +13,7 @@ import java.io.FileOutputStream;
 
 public class FileUtils {
 
-    public static void saveBitmap(byte[] data) throws Exception {
+    public static File saveBitmap(byte[] data) throws Exception {
         Log.e("==============", "保存图片");
         File f = new File(Environment.getExternalStorageDirectory().getPath() + "/faceImg", "face.jpg");
         File fileParent = f.getParentFile();
@@ -27,5 +27,6 @@ public class FileUtils {
         out.write(data);
         out.flush();
         out.close();
+        return f;
     }
 }
