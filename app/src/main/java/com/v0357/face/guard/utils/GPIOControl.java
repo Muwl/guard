@@ -17,8 +17,8 @@ import java.util.TimerTask;
  */
 
 public class GPIOControl {
-    public static int IRDAG1_PASS=10001;
-    public static int IRDAG2_PASS=10002;
+    public static final int IRDAG1_PASS=10001;
+    public static final int IRDAG2_PASS=10002;
     private int irDAGpio1 = 0;
     private int irDAGpio2 = 0;
     private int doorGpio1 = 0;

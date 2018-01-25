@@ -112,7 +112,17 @@ public class USBCameraActivity extends AppCompatActivity implements CameraDialog
     private Handler handler=new Handler(){
         @Override
         public void handleMessage(Message msg) {
-
+            switch (msg.what){
+                case GPIOControl.IRDAG1_PASS:
+                    //红外线1检测被挡
+                    break;
+                case GPIOControl.IRDAG2_PASS:
+                    //红外线2检测被挡
+                    break;
+                case SerialPortControl.SERIALPROT_INPUT:
+                    //串口收到数据
+                    break;
+            }
 
         }
     };
