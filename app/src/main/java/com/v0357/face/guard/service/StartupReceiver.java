@@ -5,9 +5,8 @@ import android.content.Context;
 import android.content.Intent;
 
 import com.v0357.face.guard.ui.USBCameraActivity;
-import com.v0357.face.guard.utils.ScriptUtils;
 
-public class StartupReceiver extends BroadcastReceiver {
+public class  StartupReceiver extends BroadcastReceiver {
 
     static final String action_boot = "android.intent.action.BOOT_COMPLETED";
 
@@ -20,12 +19,12 @@ public class StartupReceiver extends BroadcastReceiver {
             ootStartIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
             context.startActivity(ootStartIntent);
 
-            new Thread(new Runnable() {
-                @Override
-                public void run() {
-                    ScriptUtils.startScript();
-                }
-            }).start();
+//            new Thread(new Runnable() {
+//                @Override
+//                public void run() {
+//                    ScriptUtils.startScript();
+//                }
+//            }).start();
 
         }
     }

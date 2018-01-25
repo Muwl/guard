@@ -50,7 +50,12 @@ import com.serenegiant.usb.widget.CameraViewInterface;
 import com.serenegiant.usb.widget.UVCCameraTextureView;
 import com.v0357.face.guard.R;
 import com.v0357.face.guard.face.FaceDB;
+import com.v0357.face.guard.utils.CameraDataUtils;
+import com.v0357.face.guard.utils.FileUtils;
+import com.v0357.face.guard.utils.GPIOControl;
 import com.v0357.face.guard.utils.ScriptUtils;
+import com.v0357.face.guard.utils.SerialPortControl;
+import com.v0357.face.guard.utils.USBPreMission;
 import com.v0357.face.guard.view.ProgressDialog;
 
 
@@ -98,10 +103,19 @@ public class USBCameraActivity extends AppCompatActivity implements CameraDialog
     static boolean working = false;
     AFT_FSDKFace mAFT_FSDKFace = null;
 
-    private final Handler mHandler = new Handler();
-    private int pinPort = 38;
 
-    private UsbManager localUsbManager;
+
+
+    private SerialPortControl serialPortControl;
+    private GPIOControl gpioControl;
+
+    private Handler handler=new Handler(){
+        @Override
+        public void handleMessage(Message msg) {
+
+
+        }
+    };
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -112,9 +126,11 @@ public class USBCameraActivity extends AppCompatActivity implements CameraDialog
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         setContentView(R.layout.activity_usbcamera);
         ButterKnife.bind(this);
-        initUSBPre();
-        initGPIO();
-        openSerialPort();
+
+        gpioControl=new GPIOControl(this,handler);
+        serialPortControl=new SerialPortControl(this,handler);
+        new USBPreMission(this).initUSBPre();
+
         mUVCCameraView = (CameraViewInterface) mTextureView;
         mUVCCameraView.setCallback(new CameraViewInterface.Callback() {
             @Override
@@ -170,172 +186,57 @@ public class USBCameraActivity extends AppCompatActivity implements CameraDialog
         });
     }
 
-    private void initUSBPre() {
-        localUsbManager = (UsbManager)getSystemService("usb");
-        initUsb();
-    }
-    @SuppressLint("NewApi")
-    private void initUsb(){
-//		PendingIntent mPermissionIntent = PendingIntent.getBroadcast(this, 0, new Intent("com.empia.USB_PERMISSION"), 0);
-        Intent intent = new Intent();
-        intent.setAction("com.empia.USB_PERMISSION");
-        IntentFilter filter = new IntentFilter();
-        filter.addAction("com.empia.USB_PERMISSION");
-        filter.addAction(UsbManager.ACTION_USB_DEVICE_DETACHED);
-        registerReceiver(mReceiver, filter);
-        // Request permission
-        for (UsbDevice device : localUsbManager.getDeviceList().values()) {
-            intent.putExtra(UsbManager.EXTRA_DEVICE, device);
-            intent.putExtra(UsbManager.EXTRA_PERMISSION_GRANTED, true);
 
-            final PackageManager pm = getPackageManager();
-            try {
-                ApplicationInfo aInfo = pm.getApplicationInfo(getPackageName(),
-                        0);
-                try {
-                    IBinder b = ServiceManager.getService(USB_SERVICE);
-                    IUsbManager service = IUsbManager.Stub.asInterface(b);
-                    service.grantDevicePermission(device, aInfo.uid);
-                } catch (RemoteException e) {
-                    // TODO Auto-generated catch block
-                    e.printStackTrace();
-                }
-            } catch (PackageManager.NameNotFoundException e) {
-                // TODO Auto-generated catch block
-                e.printStackTrace();
-            }
-            getApplicationContext().sendBroadcast(intent);
-//          mManager.requestPermission(device, mPermissionIntent);
-            Log.i("bofan","UsbManager.EXTRA_DEVICE =="  + localUsbManager.openDevice(device));
-        }
-
-    }
 
     @Override
     public void run() {
         while (true) {
             synchronized (this) {
-                if (mImageNV21 != null && !working) {
+                if (mImageNV21 != null && !working && result != null || result.size() != 0) {
                     working = true;
                     byte[] data = mImageNV21;
-                    if (result == null || result.size() == 0 || data == null) {
-                        return;
-                    }
-                    mAFT_FSDKFace = result.get(0).clone();
-                    Mirror(data,previewWidth,previewHeight);
-                    YuvImage yuv = new YuvImage(data, ImageFormat.NV21, previewWidth, previewHeight, null);
-                    ExtByteArrayOutputStream ops = new ExtByteArrayOutputStream();
-                    Rect rect = new Rect();
-                    rect.top = (int) (mAFT_FSDKFace.getRect().top * 0.80);
-                    rect.left = previewWidth-(int) (mAFT_FSDKFace.getRect().right * 1.1);
-                    rect.right =previewWidth- (int) (mAFT_FSDKFace.getRect().left * 0.9);
-                    rect.bottom = (int) (mAFT_FSDKFace.getRect().bottom * 1.15);
-                    if (rect.left<0){
-                        rect.left=0;
-                    }
-                    if (rect.right > previewWidth) {
-                        rect.right = previewWidth;
-                    }
-                    if (rect.bottom > previewHeight) {
-                        rect.bottom = previewHeight;
-                    }
-                    yuv.compressToJpeg(rect, 100, ops);
-                    saveBitmap(ops.getByteArray());
-                    result.clear();
                     try {
-                        ops.close();
-                    } catch (IOException e) {
+                        iconImgDeal(data);
+                    } catch (Exception e) {
                         e.printStackTrace();
+                        working = false;
+                        mImageNV21 = null;
                     }
 
                 }
             }
         }
     }
-    private boolean flag=true;
 
-    @OnClick(R.id.onclik)
-    public void onClick(View view){
-        Log.e("=========","==aaa=========");
-        if (flag){
-            openDoor();
-            flag=false;
-        }else{
-            colseDoor();
-            flag=true;
+    private void iconImgDeal(byte[] data) throws Exception {
+        mAFT_FSDKFace = result.get(0).clone();
+        CameraDataUtils.Mirror(data,previewWidth,previewHeight);
+        YuvImage yuv = new YuvImage(data, ImageFormat.NV21, previewWidth, previewHeight, null);
+        ExtByteArrayOutputStream ops = new ExtByteArrayOutputStream();
+        Rect rect = new Rect();
+        rect.top = (int) (mAFT_FSDKFace.getRect().top * 0.80);
+        rect.left = previewWidth-(int) (mAFT_FSDKFace.getRect().right * 1.1);
+        rect.right =previewWidth- (int) (mAFT_FSDKFace.getRect().left * 0.9);
+        rect.bottom = (int) (mAFT_FSDKFace.getRect().bottom * 1.15);
+        if (rect.left<0){
+            rect.left=0;
         }
-
-
-
-    }
-    private void Mirror(byte[] src, int w, int h) { //src是原始yuv数组
-        int i;
-        int index;
-        byte temp;
-        int a, b;
-        //mirror y
-        for (i = 0; i < h; i++) {
-            a = i * w;
-            b = (i + 1) * w - 1;
-            while (a < b) {
-                temp = src[a];
-                src[a] = src[b];
-                src[b] = temp;
-                a++;
-                b--;
-            }
+        if (rect.right > previewWidth) {
+            rect.right = previewWidth;
         }
-
-        // mirror u and v
-        index = w * h;
-        for (i = 0; i < h / 2; i++) {
-            a = i * w;
-            b = (i + 1) * w - 2;
-            while (a < b) {
-                temp = src[a + index];
-                src[a + index] = src[b + index];
-                src[b + index] = temp;
-
-                temp = src[a + index + 1];
-                src[a + index + 1] = src[b + index + 1];
-                src[b + index + 1] = temp;
-                a+=2;
-                b-=2;
-            }
+        if (rect.bottom > previewHeight) {
+            rect.bottom = previewHeight;
         }
-    }
-
-    public void saveBitmap(byte[] data) {
-        Log.e("==============", "保存图片");
-        File f = new File(Environment.getExternalStorageDirectory().getPath() + "/faceImg", "face.jpg");
-        File fileParent = f.getParentFile();
-        if (f.exists()) {
-            f.delete();
-        }
-        if (!fileParent.exists()) {
-            fileParent.mkdirs();
-        }
+        yuv.compressToJpeg(rect, 100, ops);
+        FileUtils.saveBitmap(ops.getByteArray());
+        result.clear();
         try {
-            FileOutputStream out = new FileOutputStream(f);
-            out.write(data);
-//            bmp.compress(Bitmap.CompressFormat.JPEG, 80, out);
-            out.flush();
-            out.close();
-            verifyFace(f);
-        } catch (FileNotFoundException e) {
-            working = false;
-            mImageNV21 = null;
-            // TODO Auto-generated catch block
-            e.printStackTrace();
+            ops.close();
         } catch (IOException e) {
-            working = false;
-            mImageNV21 = null;
-            // TODO Auto-generated catch block
             e.printStackTrace();
         }
-
     }
-
+    
     /**
      * face++图片验证
      *
@@ -382,60 +283,10 @@ public class USBCameraActivity extends AppCompatActivity implements CameraDialog
 
 
     /***************************************串口*****************************************/
-    protected SerialPort mSerialPort;
-    protected InputStream mInputStream;
-    private String prot = "ttySAC2";
-    private int baudrate = 19200;
-    private Thread receiveThread;
 
-    private void openSerialPort() {
-        try {
-            mSerialPort = new SerialPort(new File("/dev/" + prot), baudrate,
-                    0);
-            mInputStream = mSerialPort.getInputStream();
-            receiveThread();
-            Log.e("******************", "打开成功");
-        } catch (SecurityException e) {
-            Log.e("******************", "打开失败");
-            e.printStackTrace();
-        } catch (IOException e) {
-            Log.e("******************", "打开失败");
-            e.printStackTrace();
-        }
-    }
 
-    private void receiveThread() {
-        // 接收
-        receiveThread = new Thread() {
-            @Override
-            public void run() {
-                while (true) {
-                    Log.e("******************", "======");
-                    int size;
-                    try {
-//                        if (working || mImageNV21 != null) {
-//                            return;
-//                        }
-                        Log.e("******************", "222222");
-                        byte[] buffer = new byte[1024];
-                        if (mInputStream != null){
-                            size = mInputStream.read(buffer);
-                            if (size > 0) {
-                                String recinfo = new String(buffer, 0,
-                                        size);
-                                working = true;
-                                getUserInfo(1, recinfo);
-                                Log.e("******************", "接收到串口信息:" + recinfo);
-                            }
-                        }
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                    }
-                }
-            }
-        };
-        receiveThread.start();
-    }
+
+
 
     /**
      * @param flag 0代表人脸识别  1代表扫描登录
@@ -470,87 +321,6 @@ public class USBCameraActivity extends AppCompatActivity implements CameraDialog
         });
     }
 
-    /**
-     * 开门 3秒后自动关门
-     */
-    private void openDoor() {
-        setGPIOValue(GPIOEnum.LOW);
-//        mHandler.postDelayed(new Runnable() {
-//            @Override
-//            public void run() {
-//                colseDoor();
-//            }
-//        }, 3000);
-    }
-
-    /**
-     * 关门
-     */
-    private void colseDoor() {
-        setGPIOValue(GPIOEnum.HIGH);
-        setStartWork();
-    }
-
-    //*******************************GPIO*****************************************************************
-
-    private Timer timer = new Timer();
-    static int STEP_INIT_GPIO_DIRECTION = 1;
-    static int STEP_CLOSE_ALL_LED = 2;
-    static int STEP_INIT_VIEW = 3;
-    private int step = 0;
-
-    private void initGPIO() {
-        if (HardwareControler.exportGPIOPin(pinPort) == 0) {
-            timer.schedule(init_task, 100, 100);
-        } else {
-            Log.e("===========", "GPIO export error!");
-        }
-    }
-
-    private Handler handler = new Handler() {
-        public void handleMessage(Message msg) {
-            switch (msg.what) {
-                case 1:
-                    timer.cancel();
-                    break;
-            }
-            super.handleMessage(msg);
-        }
-    };
-
-    private TimerTask init_task = new TimerTask() {
-        public void run() {
-            if (step == STEP_INIT_GPIO_DIRECTION) {
-                if (HardwareControler.setGPIODirection(pinPort, GPIOEnum.OUT) == 0) {
-                } else {
-                    Log.v("TimerTask", "setGPIODirection failed");
-                }
-                step++;
-            } else if (step == STEP_CLOSE_ALL_LED) {
-                if (HardwareControler.setGPIOValue(pinPort, GPIOEnum.HIGH) == 0) {
-                } else {
-                    Log.v("TimerTask", "setGPIODirection failed");
-                }
-                step++;
-            } else if (step == STEP_INIT_VIEW) {
-                Message message = new Message();
-                message.what = 1;
-                handler.sendMessage(message);
-            }
-        }
-    };
-
-    /**
-     * 设置GPIO的高低电位
-     *
-     * @param enumvalue GPIOEnum.LOW  低电位  GPIOEnum.HIGH 高电位
-     */
-    private void setGPIOValue(int enumvalue) {
-        int res = HardwareControler.setGPIOValue(pinPort, enumvalue);
-        if (res != 0) {
-            Log.e("=========", "setGPIOValue failed");
-        }
-    }
 
 
     //*********************************************************************************************************
@@ -594,7 +364,9 @@ public class USBCameraActivity extends AppCompatActivity implements CameraDialog
         if (mUSBManager != null) {
             mUSBManager.release();
         }
-        timer.cancel();
+       if (gpioControl!=null){
+            gpioControl.onDestory();
+       }
         setStartWork();
         AFT_FSDKError err = engine.AFT_FSDK_UninitialFaceEngine();
         Log.d("=====", "AFT_FSDK_UninitialFaceEngine =" + err.getCode());
@@ -676,39 +448,7 @@ public class USBCameraActivity extends AppCompatActivity implements CameraDialog
         return true;
     }
 
-    private final BroadcastReceiver mReceiver = new BroadcastReceiver() {
-        public void onReceive(Context context, Intent intent) {
-            String action = intent.getAction();
-            if ("com.empia.USB_PERMISSION".equals(action)) {
-                synchronized (this) {
-                    UsbDevice device = (UsbDevice) intent
-                            .getParcelableExtra(UsbManager.EXTRA_DEVICE);
-                    Log.e("=====","UsbManager.EXTRA_DEVICE 22222222222222222 ========"
-                            + intent.getParcelableExtra(UsbManager.EXTRA_DEVICE));
-                    Log.e("=====","是否有权限了？？？？？？   " + localUsbManager.hasPermission(device));
-                    if (intent.getBooleanExtra(
-                            UsbManager.EXTRA_PERMISSION_GRANTED, false)) {
-                        if (device != null) {
-                            // Open reader
-                            Log.e("=====","Opening reader: " + device.getDeviceName()
-                                    + "...");
-                        }
-                    } else {
-                        if (device != null) {
-                            Log.e("=====","Permission no EXTRA_PERMISSION_GRANTED for device "
-                                    + device.getDeviceName());
-                        }
 
-                    }
-                }
-            } else if (UsbManager.ACTION_USB_DEVICE_DETACHED.equals(action)) {
-                synchronized (this) {
-                    // Close reader
-                    /* logMsg("Closing reader..."); */
-                }
-            }
-        }
-    };
 
 
 }
