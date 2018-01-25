@@ -236,7 +236,7 @@ public class USBCameraActivity extends AppCompatActivity implements CameraDialog
             e.printStackTrace();
         }
     }
-    
+
     /**
      * face++图片验证
      *
