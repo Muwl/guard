@@ -125,6 +125,8 @@ public class USBCameraActivity extends AppCompatActivity implements CameraDialog
                 case DOOR_TIMEOUT:
                     gpioControl.closeIrDAG1Monitor();
                     gpioControl.closeIrDAG2Monitor();
+                    gpioControl.closeDoor1();
+                    gpioControl.closeDoor2();
                     setStartWork();
                     break;
             }
