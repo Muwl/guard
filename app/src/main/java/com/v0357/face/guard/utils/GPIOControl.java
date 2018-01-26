@@ -153,6 +153,44 @@ public class GPIOControl {
         }
     });
 
+    /**
+     * 指示灯闪亮几下
+     */
+    Thread ledBlinkThread=new Thread(new Runnable() {
+        @Override
+        public void run() {
+            for (int i=0;i<3;i++){
+                try {
+                    HardwareControler.setGPIOValue(ledGpio, GPIOEnum.LOW);
+                    Thread.sleep(200);
+                    HardwareControler.setGPIOValue(ledGpio, GPIOEnum.HIGH);
+                    Thread.sleep(200);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+
+        }
+    });
+
+    /**
+     * 指示灯常亮5S
+     */
+    Thread ledBrightThread=new Thread(new Runnable() {
+        @Override
+        public void run() {
+            HardwareControler.setGPIOValue(ledGpio, GPIOEnum.LOW);
+            try {
+                Thread.sleep(5000);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+            HardwareControler.setGPIOValue(ledGpio, GPIOEnum.HIGH);
+        }
+    });
+
+
+
     /***********************************对外暴露方法*****************************************/
 
     /**
@@ -218,6 +256,19 @@ public class GPIOControl {
         irDAG2Flag=false;
     }
 
+    /**
+     * 设置led闪亮3次
+     */
+    public void startLedBlink(){
+        ledBlinkThread.start();
+    }
+
+    /**
+     * 设置led常亮5S
+     */
+    public void startLedBright(){
+        ledBrightThread.start();
+    }
 
     public void onDestory(){
         if (timer!=null){

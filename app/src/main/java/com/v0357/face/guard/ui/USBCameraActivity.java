@@ -38,8 +38,6 @@ import com.arcsoft.facetracking.AFT_FSDKEngine;
 import com.arcsoft.facetracking.AFT_FSDKError;
 import com.arcsoft.facetracking.AFT_FSDKFace;
 import com.arcsoft.facetracking.AFT_FSDKVersion;
-import com.friendlyarm.AndroidSDK.GPIOEnum;
-import com.friendlyarm.AndroidSDK.HardwareControler;
 import com.guo.android_extend.java.ExtByteArrayOutputStream;
 import com.jiangdg.usbcamera.Constants;
 import com.jiangdg.usbcamera.USBCameraManager;
@@ -47,13 +45,11 @@ import com.serenegiant.usb.CameraDialog;
 import com.serenegiant.usb.USBMonitor;
 import com.serenegiant.usb.common.AbstractUVCCameraHandler;
 import com.serenegiant.usb.widget.CameraViewInterface;
-import com.serenegiant.usb.widget.UVCCameraTextureView;
 import com.v0357.face.guard.R;
 import com.v0357.face.guard.face.FaceDB;
 import com.v0357.face.guard.utils.CameraDataUtils;
 import com.v0357.face.guard.utils.FileUtils;
 import com.v0357.face.guard.utils.GPIOControl;
-import com.v0357.face.guard.utils.ScriptUtils;
 import com.v0357.face.guard.utils.SerialPortControl;
 import com.v0357.face.guard.utils.USBPreMission;
 import com.v0357.face.guard.view.ProgressDialog;
@@ -64,16 +60,10 @@ import org.xutils.http.RequestParams;
 import org.xutils.x;
 
 import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Timer;
-import java.util.TimerTask;
 
-import android_serialport_api.SerialPort;
 import butterknife.BindView;
 import butterknife.ButterKnife;
 import butterknife.OnClick;
@@ -85,6 +75,10 @@ import butterknife.OnClick;
  */
 
 public class USBCameraActivity extends AppCompatActivity implements CameraDialog.CameraDialogParent, Runnable {
+
+    private static final int DOOR_TIMEOUT = 40001;
+    private static final int DoorTime = 5000;
+
     @BindView(R.id.camera_view)
     public View mTextureView;
     private USBCameraManager mUSBManager;
@@ -92,8 +86,8 @@ public class USBCameraActivity extends AppCompatActivity implements CameraDialog
 
     private boolean isRequest;
     private boolean isPreview;
-    private int previewWidth= Constants.PREVIEWWIDTH;
-    private int previewHeight=Constants.PREVIEWHEIGHT;
+    private int previewWidth = Constants.PREVIEWWIDTH;
+    private int previewHeight = Constants.PREVIEWHEIGHT;
 
     private ProgressDialog mProgressDialog;
     AFT_FSDKVersion version = new AFT_FSDKVersion();
@@ -103,24 +97,35 @@ public class USBCameraActivity extends AppCompatActivity implements CameraDialog
     static boolean working = false;
     AFT_FSDKFace mAFT_FSDKFace = null;
 
-
-
-
     private SerialPortControl serialPortControl;
     private GPIOControl gpioControl;
 
-    private Handler handler=new Handler(){
+    private Handler handler = new Handler() {
         @Override
         public void handleMessage(Message msg) {
-            switch (msg.what){
+            switch (msg.what) {
                 case GPIOControl.IRDAG1_PASS:
                     //红外线1检测被挡
+                    gpioControl.closeIrDAG1Monitor();
+                    gpioControl.startIrDAG2Monitor();
                     break;
                 case GPIOControl.IRDAG2_PASS:
                     //红外线2检测被挡
+                    gpioControl.closeIrDAG2Monitor();
+                    setStartWork();
+                    //这个地需要上传记录
                     break;
                 case SerialPortControl.SERIALPROT_INPUT:
                     //串口收到数据
+                    if (!working) {
+                        working = true;
+                        getUserInfo(1, String.valueOf(msg.obj));
+                    }
+                    break;
+                case DOOR_TIMEOUT:
+                    gpioControl.closeIrDAG1Monitor();
+                    gpioControl.closeIrDAG2Monitor();
+                    setStartWork();
                     break;
             }
 
@@ -137,8 +142,8 @@ public class USBCameraActivity extends AppCompatActivity implements CameraDialog
         setContentView(R.layout.activity_usbcamera);
         ButterKnife.bind(this);
 
-        gpioControl=new GPIOControl(this,handler);
-        serialPortControl=new SerialPortControl(this,handler);
+        gpioControl = new GPIOControl(this, handler);
+        serialPortControl = new SerialPortControl(this, handler);
         new USBPreMission(this).initUSBPre();
 
         mUVCCameraView = (CameraViewInterface) mTextureView;
@@ -197,7 +202,6 @@ public class USBCameraActivity extends AppCompatActivity implements CameraDialog
     }
 
 
-
     @Override
     public void run() {
         while (true) {
@@ -206,8 +210,8 @@ public class USBCameraActivity extends AppCompatActivity implements CameraDialog
                     working = true;
                     byte[] data = mImageNV21;
                     try {
-                        File file=iconImgDeal(data);
-                        if (file!=null){
+                        File file = iconImgDeal(data);
+                        if (file != null) {
                             verifyFace(file);
                         }
                     } catch (Exception e) {
@@ -223,16 +227,16 @@ public class USBCameraActivity extends AppCompatActivity implements CameraDialog
 
     private File iconImgDeal(byte[] data) throws Exception {
         mAFT_FSDKFace = result.get(0).clone();
-        CameraDataUtils.Mirror(data,previewWidth,previewHeight);
+        CameraDataUtils.Mirror(data, previewWidth, previewHeight);
         YuvImage yuv = new YuvImage(data, ImageFormat.NV21, previewWidth, previewHeight, null);
         ExtByteArrayOutputStream ops = new ExtByteArrayOutputStream();
         Rect rect = new Rect();
         rect.top = (int) (mAFT_FSDKFace.getRect().top * 0.80);
-        rect.left = previewWidth-(int) (mAFT_FSDKFace.getRect().right * 1.1);
-        rect.right =previewWidth- (int) (mAFT_FSDKFace.getRect().left * 0.9);
+        rect.left = previewWidth - (int) (mAFT_FSDKFace.getRect().right * 1.1);
+        rect.right = previewWidth - (int) (mAFT_FSDKFace.getRect().left * 0.9);
         rect.bottom = (int) (mAFT_FSDKFace.getRect().bottom * 1.15);
-        if (rect.left<0){
-            rect.left=0;
+        if (rect.left < 0) {
+            rect.left = 0;
         }
         if (rect.right > previewWidth) {
             rect.right = previewWidth;
@@ -241,7 +245,7 @@ public class USBCameraActivity extends AppCompatActivity implements CameraDialog
             rect.bottom = previewHeight;
         }
         yuv.compressToJpeg(rect, 100, ops);
-        File file=FileUtils.saveBitmap(ops.getByteArray());
+        File file = FileUtils.saveBitmap(ops.getByteArray());
         result.clear();
         try {
             ops.close();
@@ -299,9 +303,6 @@ public class USBCameraActivity extends AppCompatActivity implements CameraDialog
     /***************************************串口*****************************************/
 
 
-
-
-
     /**
      * @param flag 0代表人脸识别  1代表扫描登录
      * @param tag  唯一标示
@@ -314,12 +315,14 @@ public class USBCameraActivity extends AppCompatActivity implements CameraDialog
             @Override
             public void onSuccess(String result) {
                 Toast.makeText(x.app(), result, Toast.LENGTH_LONG).show();
+                openDoor();
             }
 
             @Override
             public void onError(Throwable ex, boolean isOnCallback) {
                 Toast.makeText(x.app(), ex.getMessage(), Toast.LENGTH_LONG).show();
                 setStartWork();
+                gpioControl.startLedBlink();
             }
 
             @Override
@@ -335,6 +338,16 @@ public class USBCameraActivity extends AppCompatActivity implements CameraDialog
         });
     }
 
+    /**
+     * 开门
+     */
+    private void openDoor() {
+        gpioControl.openDoor1();
+        gpioControl.openDoor2();
+        gpioControl.startIrDAG1Monitor();
+        gpioControl.startLedBright();
+        handler.sendEmptyMessageDelayed(DOOR_TIMEOUT, DoorTime);
+    }
 
 
     //*********************************************************************************************************
@@ -378,9 +391,9 @@ public class USBCameraActivity extends AppCompatActivity implements CameraDialog
         if (mUSBManager != null) {
             mUSBManager.release();
         }
-       if (gpioControl!=null){
+        if (gpioControl != null) {
             gpioControl.onDestory();
-       }
+        }
         setStartWork();
         AFT_FSDKError err = engine.AFT_FSDK_UninitialFaceEngine();
         Log.d("=====", "AFT_FSDK_UninitialFaceEngine =" + err.getCode());
@@ -457,12 +470,10 @@ public class USBCameraActivity extends AppCompatActivity implements CameraDialog
         return mUSBManager.isCameraOpened();
     }
 
-    public boolean onCreateOptionsMenu(Menu menu){
-        getMenuInflater().inflate(R.menu.main,menu);
+    public boolean onCreateOptionsMenu(Menu menu) {
+        getMenuInflater().inflate(R.menu.main, menu);
         return true;
     }
-
-
 
 
 }
