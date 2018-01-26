@@ -152,7 +152,6 @@ public class GPIOControl {
             }
         }
     });
-
     /**
      * 指示灯闪亮几下
      */
