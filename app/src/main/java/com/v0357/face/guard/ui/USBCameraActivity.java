@@ -77,6 +77,7 @@ import butterknife.OnClick;
 public class USBCameraActivity extends AppCompatActivity implements CameraDialog.CameraDialogParent, Runnable {
 
     private static final int DOOR_TIMEOUT = 40001;
+    private static final int LED_TIMEOUT = 40002;
     private static final int DoorTime = 5000;
 
     @BindView(R.id.camera_view)
@@ -112,6 +113,8 @@ public class USBCameraActivity extends AppCompatActivity implements CameraDialog
                 case GPIOControl.IRDAG2_PASS:
                     //红外线2检测被挡
                     gpioControl.closeIrDAG2Monitor();
+                    gpioControl.closeDoor1();
+                    gpioControl.closeDoor2();
                     setStartWork();
                     //这个地需要上传记录
                     break;
@@ -129,6 +132,9 @@ public class USBCameraActivity extends AppCompatActivity implements CameraDialog
                     gpioControl.closeDoor2();
                     setStartWork();
                     break;
+                case LED_TIMEOUT:
+                    setStartWork();
+                    break;
             }
 
         }
@@ -143,11 +149,9 @@ public class USBCameraActivity extends AppCompatActivity implements CameraDialog
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         setContentView(R.layout.activity_usbcamera);
         ButterKnife.bind(this);
-
+        Log.e("=================",FileUtils.readToString());
         gpioControl = new GPIOControl(this, handler);
         serialPortControl = new SerialPortControl(this, handler);
-        new USBPreMission(this).initUSBPre();
-
         mUVCCameraView = (CameraViewInterface) mTextureView;
         mUVCCameraView.setCallback(new CameraViewInterface.Callback() {
             @Override
@@ -195,7 +199,9 @@ public class USBCameraActivity extends AppCompatActivity implements CameraDialog
                     AFT_FSDKError err = engine.AFT_FSDK_FaceFeatureDetect(data, previewWidth, previewHeight, AFT_FSDKEngine.CP_PAF_NV21, result);
                     if (mImageNV21 == null) {
                         if (!result.isEmpty()) {
-                            mImageNV21 = data;
+                            if (data!=null){
+                                mImageNV21 = data.clone();
+                            }
                         }
                     }
                 }
@@ -207,23 +213,30 @@ public class USBCameraActivity extends AppCompatActivity implements CameraDialog
     @Override
     public void run() {
         while (true) {
-            synchronized (this) {
-                if (mImageNV21 != null && !working && result != null || result.size() != 0) {
-                    working = true;
-                    byte[] data = mImageNV21;
-                    try {
-                        File file = iconImgDeal(data);
-                        if (file != null) {
-                            verifyFace(file);
-                        }
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                        working = false;
-                        mImageNV21 = null;
-                    }
+            dataImage();
+        }
+    }
 
+    private synchronized void dataImage(){
+        if (mImageNV21 != null  && !working && result != null || result.size() != 0) {
+            working = true;
+            try {
+                byte[] data = mImageNV21;
+                if (data==null){
+                    working = false;
+                    mImageNV21 = null;
+                    return;
                 }
+                File file = iconImgDeal(data);
+                if (file != null) {
+                    verifyFace(file);
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+                working = false;
+                mImageNV21 = null;
             }
+
         }
     }
 
@@ -325,6 +338,7 @@ public class USBCameraActivity extends AppCompatActivity implements CameraDialog
                 Toast.makeText(x.app(), ex.getMessage(), Toast.LENGTH_LONG).show();
                 setStartWork();
                 gpioControl.startLedBlink();
+                handler.sendEmptyMessageDelayed(DOOR_TIMEOUT, 2000);
             }
 
             @Override
