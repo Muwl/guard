@@ -32,6 +32,7 @@ import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.Toast;
 
+import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import com.arcsoft.facetracking.AFT_FSDKEngine;
@@ -120,9 +121,10 @@ public class USBCameraActivity extends AppCompatActivity implements CameraDialog
                     break;
                 case SerialPortControl.SERIALPROT_INPUT:
                     //串口收到数据
+                    Log.e("======收到的二维码",String.valueOf(msg.obj)+"==="+working);
                     if (!working) {
                         working = true;
-                        getUserInfo(1, String.valueOf(msg.obj));
+                        getCodeInfo(String.valueOf(msg.obj));
                     }
                     break;
                 case DOOR_TIMEOUT:
@@ -278,10 +280,10 @@ public class USBCameraActivity extends AppCompatActivity implements CameraDialog
     private void verifyFace(File file) {
         String url = "https://api-cn.faceplusplus.com/facepp/v3/search";
         RequestParams params = new RequestParams(url);
-        params.addBodyParameter("api_key", "tNr9XrJWaRY3gNojNK6Xz77XE_d4Ik65");
-        params.addBodyParameter("api_secret", "-42yGXbbquYeD_xSM2HMiEwPMMeiT2sT");
+        params.addBodyParameter("api_key", "8CMUOyqr0JeANu6aIwC3nhjKrO-DIPuN");
+        params.addBodyParameter("api_secret", "WMsz63hmGmjAAxRIYUCdiVMWThb4F8P2");
         params.addBodyParameter("image_file", file);
-        params.addBodyParameter("faceset_token", "edc942ea21072ac4a9ca5cb09a1eca49");
+        params.addBodyParameter("faceset_token", "1d30ca7f3873b94f6d95b6a07c29aec0");
         try {
             String res = x.http().postSync(params, String.class);
             JSONObject jsonObject = JSONObject.parseObject(res);
@@ -289,10 +291,11 @@ public class USBCameraActivity extends AppCompatActivity implements CameraDialog
                 JSONArray resArr = jsonObject.getJSONArray("results");
                 if (resArr != null && resArr.size() != 0) {
                     float confide = resArr.getJSONObject(0).getFloat("confidence");
-                    if (confide >= 80) {
-                        getUserInfo(0, resArr.getJSONObject(0).getString("face_token"));
+                    if (confide >= 75) {
+                        getFaceInfo(resArr.getJSONObject(0).getString("face_token"));
                     } else {
-                        setStartWork();
+                        gpioControl.startLedBlink();
+                        handler.sendEmptyMessageDelayed(DOOR_TIMEOUT, 2000);
                     }
                 } else {
                     setStartWork();
@@ -319,22 +322,85 @@ public class USBCameraActivity extends AppCompatActivity implements CameraDialog
 
 
     /**
-     * @param flag 0代表人脸识别  1代表扫描登录
+     *
      * @param tag  唯一标示
      */
-    private void getUserInfo(int flag, String tag) {
-        String url = "";
+    private void getFaceInfo(String tag) {
+        String url = "http://face.v0357.com/api/auth/";
         RequestParams params = new RequestParams(url);
-        params.addQueryStringParameter("tag", "tag");
+        Log.e("===========",tag+"=====");
+        params.addBodyParameter("face_token", tag);
         x.http().post(params, new Callback.CommonCallback<String>() {
             @Override
             public void onSuccess(String result) {
+                Log.e("===========",result+"=====");
+                try{
+                    int errCode=JSON.parseObject(result).getInteger("error");
+                    if (errCode==0){
+                        openDoor();
+                        return;
+                    }
+                }catch (Exception e){
+                    e.printStackTrace();
+                }
+                setStartWork();
+                gpioControl.startLedBlink();
                 Toast.makeText(x.app(), result, Toast.LENGTH_LONG).show();
-                openDoor();
+
             }
 
             @Override
             public void onError(Throwable ex, boolean isOnCallback) {
+                ex.printStackTrace();
+                Toast.makeText(x.app(), ex.getMessage(), Toast.LENGTH_LONG).show();
+                gpioControl.startLedBlink();
+                handler.sendEmptyMessageDelayed(DOOR_TIMEOUT, 2000);
+            }
+
+            @Override
+            public void onCancelled(CancelledException cex) {
+                Toast.makeText(x.app(), "cancelled", Toast.LENGTH_LONG).show();
+                setStartWork();
+            }
+
+            @Override
+            public void onFinished() {
+
+            }
+        });
+    }
+
+
+    /**
+     *
+     * @param tag  唯一标示
+     */
+    private void getCodeInfo(String tag) {
+        String url = "http://face.v0357.com/api/auth_by_qrcode";
+        RequestParams params = new RequestParams(url);
+        Log.e("===========",tag+"code=====");
+        params.addBodyParameter("member_id", tag);
+        x.http().post(params, new Callback.CommonCallback<String>() {
+            @Override
+            public void onSuccess(String result) {
+                Log.e("===========",result+"=====");
+                try{
+                    int errCode=JSON.parseObject(result).getInteger("error");
+                    if (errCode==0){
+                        openDoor();
+                        return;
+                    }
+                }catch (Exception e){
+                    e.printStackTrace();
+                }
+                setStartWork();
+                gpioControl.startLedBlink();
+                Toast.makeText(x.app(), result, Toast.LENGTH_LONG).show();
+            }
+
+            @Override
+            public void onError(Throwable ex, boolean isOnCallback) {
+                ex.printStackTrace();
                 Toast.makeText(x.app(), ex.getMessage(), Toast.LENGTH_LONG).show();
                 setStartWork();
                 gpioControl.startLedBlink();

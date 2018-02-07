@@ -68,6 +68,7 @@ public class SerialPortControl {
                             if (size > 0) {
                                 String recinfo = new String(buffer, 0,
                                         size);
+                                Log.e("******************", recinfo);
                                 Message message = new Message();
                                 message.what = SERIALPROT_INPUT;
                                 message.obj = recinfo;
