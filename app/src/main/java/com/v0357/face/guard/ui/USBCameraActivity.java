@@ -17,6 +17,7 @@ import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
 import android.os.IBinder;
+import android.os.Looper;
 import android.os.Message;
 import android.os.RemoteException;
 import android.os.ServiceManager;
@@ -52,6 +53,7 @@ import com.v0357.face.guard.utils.CameraDataUtils;
 import com.v0357.face.guard.utils.FileUtils;
 import com.v0357.face.guard.utils.GPIOControl;
 import com.v0357.face.guard.utils.SerialPortControl;
+import com.v0357.face.guard.utils.ToastUtils;
 import com.v0357.face.guard.utils.USBPreMission;
 import com.v0357.face.guard.view.ProgressDialog;
 
@@ -296,6 +298,14 @@ public class USBCameraActivity extends AppCompatActivity implements CameraDialog
                     } else {
                         gpioControl.startLedBlink();
                         handler.sendEmptyMessageDelayed(DOOR_TIMEOUT, 2000);
+                        new Thread(new Runnable() {
+                            @Override
+                            public void run() {
+                                Looper.prepare();
+                                ToastUtils.showToast(USBCameraActivity.this,"人脸验证失败！");
+                                Looper.loop();
+                            }
+                        }).start();
                     }
                 } else {
                     setStartWork();
@@ -338,12 +348,14 @@ public class USBCameraActivity extends AppCompatActivity implements CameraDialog
                     int errCode=JSON.parseObject(result).getInteger("error");
                     if (errCode==0){
                         openDoor();
+                        ToastUtils.showToast(USBCameraActivity.this,"人脸验证成功！");
                         return;
                     }
                 }catch (Exception e){
                     e.printStackTrace();
                 }
                 setStartWork();
+                ToastUtils.showToast(USBCameraActivity.this,"人脸验证失败！");
                 gpioControl.startLedBlink();
                 Toast.makeText(x.app(), result, Toast.LENGTH_LONG).show();
 
@@ -354,6 +366,7 @@ public class USBCameraActivity extends AppCompatActivity implements CameraDialog
                 ex.printStackTrace();
                 Toast.makeText(x.app(), ex.getMessage(), Toast.LENGTH_LONG).show();
                 gpioControl.startLedBlink();
+                ToastUtils.showToast(USBCameraActivity.this,"人脸验证失败！");
                 handler.sendEmptyMessageDelayed(DOOR_TIMEOUT, 2000);
             }
 
@@ -388,12 +401,14 @@ public class USBCameraActivity extends AppCompatActivity implements CameraDialog
                     int errCode=JSON.parseObject(result).getInteger("error");
                     if (errCode==0){
                         openDoor();
+                        ToastUtils.showToast(USBCameraActivity.this,"二维码验证成功！");
                         return;
                     }
                 }catch (Exception e){
                     e.printStackTrace();
                 }
                 setStartWork();
+                ToastUtils.showToast(USBCameraActivity.this,"二维码验证失败！");
                 gpioControl.startLedBlink();
                 Toast.makeText(x.app(), result, Toast.LENGTH_LONG).show();
             }
@@ -404,6 +419,7 @@ public class USBCameraActivity extends AppCompatActivity implements CameraDialog
                 Toast.makeText(x.app(), ex.getMessage(), Toast.LENGTH_LONG).show();
                 setStartWork();
                 gpioControl.startLedBlink();
+                ToastUtils.showToast(USBCameraActivity.this,"二维码验证失败！");
                 handler.sendEmptyMessageDelayed(DOOR_TIMEOUT, 2000);
             }
 
